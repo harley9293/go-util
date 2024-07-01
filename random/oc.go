@@ -1,7 +1,7 @@
 package random
 
 import (
-	"git.unlimityun.com/lib/go-util/io"
+	"github.com/harley9293/go-util/io"
 	"io/ioutil"
 	"math/rand"
 	"os"
