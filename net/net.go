@@ -50,7 +50,12 @@ func DownloadFile(session *ssh.Session, remotePath, localPath string) error {
 
 // UploadFile Upload file to ssh.Session
 func UploadFile(session *ssh.Session, localPath string, remotePath string) error {
-	err := session.Run("touch " + remotePath)
+	dstFile, err := session.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stdin pipe: %w", err)
+	}
+
+	err = session.Run("touch " + remotePath)
 	if err != nil {
 		return fmt.Errorf("failed to touch remote file: %w", err)
 	}
@@ -60,11 +65,6 @@ func UploadFile(session *ssh.Session, localPath string, remotePath string) error
 		return fmt.Errorf("failed to open local file: %w", err)
 	}
 	defer srcFile.Close()
-
-	dstFile, err := session.StdinPipe()
-	if err != nil {
-		return fmt.Errorf("failed to create stdin pipe: %w", err)
-	}
 
 	go func() {
 		defer dstFile.Close()
