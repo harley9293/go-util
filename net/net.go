@@ -2,8 +2,11 @@ package net
 
 import (
 	"errors"
+	"golang.org/x/crypto/ssh"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -19,4 +22,48 @@ func GetPublicIP() (string, error) {
 	body, _ := ioutil.ReadAll(rsp.Body)
 
 	return string(body), nil
+}
+
+// DownloadFile Download file from ssh.Session
+func DownloadFile(session *ssh.Session, remotePath, localPath string) error {
+	srcFile, err := session.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	dstFile, err := os.Create(localPath)
+	if err != nil {
+		return err
+	}
+	defer func(dstFile *os.File) {
+		_ = dstFile.Close()
+	}(dstFile)
+
+	go func() {
+		_, _ = io.Copy(dstFile, srcFile)
+	}()
+
+	err = session.Run("cat " + remotePath)
+	return err
+}
+
+// UploadFile Upload file to ssh.Session
+func UploadFile(session *ssh.Session, localPath string, remotePath string) error {
+	srcFile, err := os.Open(localPath)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := session.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		io.Copy(srcFile, dstFile)
+	}()
+
+	err = session.Run("cat > " + remotePath)
+	return err
 }

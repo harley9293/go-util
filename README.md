@@ -13,6 +13,8 @@ A utility library written in Go, further encapsulating the standard library for 
 
 ### net
 - **GetPublicIP**: Retrieves public IP address.
+- **DownloadFile**: Download file from ssh.Session.
+- **UploadFile**: Upload file to ssh.Session.
 
 ### random
 - **String**: Generates a random string of specified length.
