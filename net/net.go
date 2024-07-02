@@ -27,25 +27,36 @@ func GetPublicIP() (string, error) {
 
 // DownloadFile Download file from ssh.Session
 func DownloadFile(session *ssh.Session, remotePath, localPath string) error {
-	srcFile, err := session.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
 	dstFile, err := os.Create(localPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create local file: %w", err)
 	}
-	defer func(dstFile *os.File) {
-		_ = dstFile.Close()
-	}(dstFile)
+	defer dstFile.Close()
 
-	go func() {
-		_, _ = io.Copy(dstFile, srcFile)
-	}()
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stdout pipe: %w", err)
+	}
+	stderr, err := session.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stderr pipe: %w", err)
+	}
 
-	err = session.Run("cat " + remotePath)
-	return err
+	go io.Copy(os.Stderr, stderr)
+
+	if err := session.Start("cat " + remotePath); err != nil {
+		return fmt.Errorf("failed to start remote command: %w", err)
+	}
+
+	if _, err := io.Copy(dstFile, stdout); err != nil {
+		return fmt.Errorf("failed to copy data: %w", err)
+	}
+
+	if err := session.Wait(); err != nil {
+		return fmt.Errorf("failed to wait for remote command: %w", err)
+	}
+
+	return nil
 }
 
 // UploadFile Upload file to ssh.Session
