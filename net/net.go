@@ -2,6 +2,7 @@ package net
 
 import (
 	"errors"
+	"fmt"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"io/ioutil"
@@ -51,19 +52,23 @@ func DownloadFile(session *ssh.Session, remotePath, localPath string) error {
 func UploadFile(session *ssh.Session, localPath string, remotePath string) error {
 	srcFile, err := os.Open(localPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open local file: %w", err)
 	}
 	defer srcFile.Close()
 
-	dstFile, err := session.StdoutPipe()
+	dstFile, err := session.StdinPipe()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create stdin pipe: %w", err)
 	}
 
 	go func() {
-		io.Copy(srcFile, dstFile)
+		defer dstFile.Close()
+		io.Copy(dstFile, srcFile)
 	}()
 
-	err = session.Run("cat > " + remotePath)
-	return err
+	err = session.Run(fmt.Sprintf("cat > %s", remotePath))
+	if err != nil {
+		return fmt.Errorf("failed to run remote command: %w", err)
+	}
+	return nil
 }
