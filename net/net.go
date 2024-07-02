@@ -50,6 +50,11 @@ func DownloadFile(session *ssh.Session, remotePath, localPath string) error {
 
 // UploadFile Upload file to ssh.Session
 func UploadFile(session *ssh.Session, localPath string, remotePath string) error {
+	err := session.Run("touch " + remotePath)
+	if err != nil {
+		return fmt.Errorf("failed to touch remote file: %w", err)
+	}
+
 	srcFile, err := os.Open(localPath)
 	if err != nil {
 		return fmt.Errorf("failed to open local file: %w", err)
