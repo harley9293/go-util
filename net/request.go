@@ -16,9 +16,12 @@ type HttpRequestParams struct {
 }
 
 func ExecuteHttpRequest(params HttpRequestParams) (code int, body []byte, err error) {
-	jsonStr, err := json.Marshal(params.Params)
-	if err != nil {
-		return
+	var jsonStr []byte
+	if params.Params != nil {
+		jsonStr, err = json.Marshal(params.Params)
+		if err != nil {
+			return
+		}
 	}
 
 	request, err := http.NewRequest(params.Method, params.Path, bytes.NewBuffer(jsonStr))
@@ -26,8 +29,10 @@ func ExecuteHttpRequest(params HttpRequestParams) (code int, body []byte, err er
 		return
 	}
 
-	for k, v := range params.Headers {
-		request.Header.Set(k, v)
+	if params.Headers != nil {
+		for k, v := range params.Headers {
+			request.Header.Set(k, v)
+		}
 	}
 	client := http.Client{}
 	resp, err := client.Do(request.WithContext(context.TODO()))
