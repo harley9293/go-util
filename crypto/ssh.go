@@ -7,28 +7,43 @@ import (
 )
 
 type Dialer struct {
-	Host string
-	Port int
-	User string
+	Host       string
+	Port       int
+	User       string
+	PrivateKey []byte
+	Password   string
 }
 
-func NewSession(key []byte, target *Dialer, jumpList ...*Dialer) (*ssh.Session, error) {
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse private key: %v", err)
+func (d *Dialer) GetClientConfig() (*ssh.ClientConfig, error) {
+	config := &ssh.ClientConfig{
+		User:            d.User,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
+	if d.Password != "" {
+		config.Auth = []ssh.AuthMethod{
+			ssh.Password(d.Password),
+		}
+	} else {
+		signer, err := ssh.ParsePrivateKey(d.PrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse private key: %v", err)
+		}
+		config.Auth = []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		}
+	}
+
+	return config, nil
+}
+
+func NewSession(target *Dialer, jumpList ...*Dialer) (*ssh.Session, error) {
 	var conn net.Conn
 	var client *ssh.Client
+	var err error
 
 	for i, jump := range jumpList {
-		config := &ssh.ClientConfig{
-			User: jump.User,
-			Auth: []ssh.AuthMethod{
-				ssh.PublicKeys(signer),
-			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		}
+		config, err := jump.GetClientConfig()
 
 		addr := fmt.Sprintf("%s:%d", jump.Host, jump.Port)
 		if i == 0 {
@@ -53,14 +68,7 @@ func NewSession(key []byte, target *Dialer, jumpList ...*Dialer) (*ssh.Session, 
 		}
 	}
 
-	config := &ssh.ClientConfig{
-		User: target.User,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-
+	config, err := target.GetClientConfig()
 	addr := fmt.Sprintf("%s:%d", target.Host, target.Port)
 	conn, err = client.Dial("tcp", addr)
 	if err != nil {
