@@ -3,7 +3,6 @@ package crypto
 import (
 	"fmt"
 	"golang.org/x/crypto/ssh"
-	"io/ioutil"
 	"net"
 )
 
@@ -13,12 +12,7 @@ type Dialer struct {
 	User string
 }
 
-func NewSession(privateKeyFile string, target *Dialer, jumpList ...*Dialer) (*ssh.Session, error) {
-	key, err := ioutil.ReadFile(privateKeyFile)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read private key: %v", err)
-	}
-
+func NewSession(key []byte, target *Dialer, jumpList ...*Dialer) (*ssh.Session, error) {
 	signer, err := ssh.ParsePrivateKey(key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse private key: %v", err)
